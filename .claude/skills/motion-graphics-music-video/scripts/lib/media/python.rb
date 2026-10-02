@@ -7,7 +7,12 @@ module Media
   class Python < Shell
     SCRIPTS = File.expand_path("../../tools/python", __dir__)
 
-    def executable = ENV["MV_PYTHON"] || (File.file?(File.expand_path(".venv/bin/python3")) ? File.expand_path(".venv/bin/python3") : "python3")
+    # Windows venvs keep the interpreter in Scripts/python.exe instead of bin/python3.
+    VENV_PYTHON = Shell.windows? ? ".venv/Scripts/python.exe" : ".venv/bin/python3"
+
+    def self.venv_python = File.expand_path(VENV_PYTHON)
+
+    def executable = ENV["MV_PYTHON"] || (File.file?(self.class.venv_python) ? self.class.venv_python : "python3")
 
     def call(script, *args)
       JSON.parse(run(executable, File.join(SCRIPTS, script), *args, quiet: true))

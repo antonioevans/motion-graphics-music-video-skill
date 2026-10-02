@@ -12,7 +12,7 @@ module Media
   }.freeze
 
   # Explicit font file for magick labels / ffmpeg drawtext (no fontconfig default on macOS brew builds).
-  FONT = [ENV["MEDIA_FONT"], "/System/Library/Fonts/Supplemental/Arial.ttf", "/Library/Fonts/Arial Unicode.ttf"]
+  FONT = [ENV["MEDIA_FONT"], "/System/Library/Fonts/Supplemental/Arial.ttf", "/Library/Fonts/Arial Unicode.ttf", "C:/Windows/Fonts/arial.ttf"]
            .compact.find { |f| File.exist?(f) }
 
   def self.mime_type(path)
@@ -21,7 +21,10 @@ module Media
 
   # Base for wrappers around local CLI tools (ffmpeg, magick, python3).
   class Shell
+    def self.windows? = Gem.win_platform?
+
     def self.available?(bin)
+      return system("where", bin, out: File::NULL, err: File::NULL) if windows?
       system("command -v #{bin.shellescape} > /dev/null 2>&1")
     end
 

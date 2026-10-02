@@ -30,7 +30,7 @@ module Media
       FileUtils.mkdir_p(File.dirname(out))
       n = cols * rows
       rate = n / duration(video)
-      label = filter?("drawtext") ? ",drawtext=fontfile='#{FONT}':text='%{pts\\:hms}':x=6:y=6:fontsize=16:fontcolor=white:box=1:boxcolor=black@0.6" : ""
+      label = filter?("drawtext") ? ",drawtext=fontfile='#{FONT.to_s.gsub(":", "\\\\:")}':text='%{pts\\:hms}':x=6:y=6:fontsize=16:fontcolor=white:box=1:boxcolor=black@0.6" : ""
       run("ffmpeg", "-y", "-v", "error", "-i", video,
           "-vf", "fps=#{rate},scale=#{width}:-2#{label},tile=#{cols}x#{rows}:padding=4",
           "-frames:v", "1", out)

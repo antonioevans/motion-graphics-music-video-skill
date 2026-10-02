@@ -35,7 +35,7 @@ module Toolkit
 
     def start(project:, task:, options: {})
       raise ArgumentError, "Configure the plugin's FAL_AI_API_KEY, or set it in the environment when launching mcp.rb" unless configured? || task == "doctor"
-      raise ArgumentError, "project must be an absolute initialized video project path" unless project.is_a?(String) && project.start_with?("/") && File.file?(File.join(project, "config/project.json"))
+      raise ArgumentError, "project must be an absolute initialized video project path" unless project.is_a?(String) && File.absolute_path?(project) && File.file?(File.join(project, "config/project.json"))
       project = File.realpath(project)
       runtime = File.realpath(File.dirname(@entry))
       raise ArgumentError, "Use a video project outside the installed toolkit" if project == runtime || project.start_with?(runtime + "/")
@@ -52,7 +52,7 @@ module Toolkit
         # Desktop MCP launchers can inherit a C/US-ASCII locale. Project text
         # and worker logs use UTF-8 regardless of the launcher's locale.
         stdin, output, waiter = Open3.popen2e(environment, RbConfig.ruby, "-EUTF-8", @entry,
-          "--project", project, task, chdir: project, pgroup: true)
+          "--project", project, task, chdir: project, **GROUP)
         stdin.close
         output.set_encoding(Encoding::UTF_8)
         job = { state: "running", output: "", waiter: waiter, started: Process.clock_gettime(Process::CLOCK_MONOTONIC) }
@@ -108,8 +108,16 @@ module Toolkit
 
     private
 
+    # Windows has no POSIX process groups; a new group plus taskkill /T stops the worker tree.
+    GROUP = Gem.win_platform? ? { new_pgroup: true } : { pgroup: true }
+
     def stop(job)
-      Process.kill("TERM", -job[:waiter].pid) if job[:waiter].alive?
+      return unless job[:waiter].alive?
+      if Gem.win_platform?
+        system("taskkill", "/T", "/F", "/PID", job[:waiter].pid.to_s, out: File::NULL, err: File::NULL)
+      else
+        Process.kill("TERM", -job[:waiter].pid)
+      end
     rescue Errno::ESRCH
       # It completed between the status check and the signal.
     end

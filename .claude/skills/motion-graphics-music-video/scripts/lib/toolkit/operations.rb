@@ -177,7 +177,9 @@ module Toolkit
       checks = bins.to_h { |b| [b, Media::Shell.available?(b)] }
       checks["python_packages"] = system(py.executable, "-c", "import PIL, numpy", out: File::NULL, err: File::NULL)
       checks["node_packages"] = File.directory?("node_modules/p5") && File.directory?("node_modules/puppeteer-core")
-      checks["chrome"] = [ENV["CHROME_PATH"], "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome", "/usr/bin/chromium"].compact.any? { |p| File.file?(p) }
+      checks["chrome"] = [ENV["CHROME_PATH"], "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/usr/bin/google-chrome", "/usr/bin/chromium",
+                          "C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+                          File.join(ENV["LOCALAPPDATA"].to_s, "Google/Chrome/Application/chrome.exe")].compact.any? { |p| File.file?(p) }
       checks["fal_key"] = !ENV["FAL_AI_API_KEY"].to_s.strip.empty?
       emit checks
       raise "Missing prerequisites; see references/testing.md and run setup" if ENV["STRICT"] == "1" && checks.values.any? { |v| !v }
@@ -187,7 +189,7 @@ module Toolkit
       shell.run(RbConfig.ruby, "-S", "bundle", "install")
       shell.run("npm", "ci")
       shell.run("python3", "-m", "venv", ".venv") unless File.directory?(".venv")
-      shell.run(File.expand_path(".venv/bin/python3"), "-m", "pip", "install", "-r", "requirements.txt")
+      shell.run(Media::Python.venv_python, "-m", "pip", "install", "-r", "requirements.txt")
       doctor
     end
   end

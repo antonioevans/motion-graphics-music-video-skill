@@ -4,7 +4,8 @@ require "digest"
 
 module Toolkit
   class Fonts
-    ROOTS = ["/System/Library/Fonts", "/Library/Fonts", File.expand_path("~/Library/Fonts")].freeze
+    ROOTS = ["/System/Library/Fonts", "/Library/Fonts", File.expand_path("~/Library/Fonts"),
+             "C:/Windows/Fonts", File.join(ENV["LOCALAPPDATA"].to_s, "Microsoft/Windows/Fonts")].freeze
 
     def list(roots = ROOTS)
       roots.flat_map { |root| Dir.glob(File.join(root, "**", "*")) }
@@ -20,7 +21,7 @@ module Toolkit
         unless name == File.basename(name) && %w[.ttf .otf].include?(File.extname(name).downcase)
           raise ArgumentError, "Use a .ttf or .otf filename without directories: #{name}"
         end
-        unless source.is_a?(String) && source.start_with?("/") && File.file?(source) && File.extname(source).downcase == File.extname(name).downcase
+        unless source.is_a?(String) && File.absolute_path?(source) && File.file?(source) && File.extname(source).downcase == File.extname(name).downcase
           raise ArgumentError, "Missing or incompatible absolute font source: #{source}"
         end
         target = File.join(destination, name)
