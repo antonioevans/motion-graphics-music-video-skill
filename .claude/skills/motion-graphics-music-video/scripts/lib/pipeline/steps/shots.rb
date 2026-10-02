@@ -29,6 +29,11 @@ module Pipeline
         if (run = spec["from_run"])
           return { source: run, path: Project.new(run).fetch!(:video, :path) }
         end
+        if (file = spec["source"])
+          path = File.expand_path(file, ROOT)
+          raise ArgumentError, "shot #{name}: no source video #{path}" unless File.file?(path)
+          return { source: file, path: path }
+        end
         raise ArgumentError, "Never retime a singing shot" if spec["audio"] && spec["retime"]
         seconds = spec.fetch("seconds", GEN_SECONDS)
         raise ArgumentError, "shot needs more source frames" if !spec["retime"] && spec["frames"] > seconds * FPS
@@ -44,10 +49,9 @@ module Pipeline
 
       def finish(items)
         segments = specs.map do |name, spec|
-          { path: items[name]["path"], frames: spec["frames"], retime: spec["retime"],
-            skip: spec["from_run"] ? spec["start_frame"] : 0 }
+          { path: items[name]["path"], frames: spec["frames"], retime: spec["retime"], skip: skip_frames(spec) }
         end
-        plate = ffmpeg.concat_shots(segments, project.path("04_plate.mp4"), fps: FPS)
+        plate = ffmpeg.concat_shots(segments, project.path("04_plate.mp4"), fps: FPS, size: project.generation[:size])
         { path: ffmpeg.mux(plate, project[:music]["path"], project.path("final.mp4"), shortest: false), plate: plate }
       end
 
@@ -63,7 +67,7 @@ module Pipeline
         end
         # Frames each source must have: from_run sources are read from the shot's position, generated ones from 0.
         short = specs.reject do |name, s|
-          s["retime"] || ffmpeg.summary(project[key]["items"][name]["path"]).dig(:video, :frames).to_i >= (s["from_run"] ? s["start_frame"] : 0) + s["frames"]
+          s["retime"] || ffmpeg.summary(project[key]["items"][name]["path"]).dig(:video, :frames).to_i >= skip_frames(s) + s["frames"]
         end
         {
           summary: summary, contact_sheet: ffmpeg.contact_sheet(final, project.review_path(key, "contact_sheet.jpg"), cols: 6, rows: 3),
@@ -80,6 +84,15 @@ module Pipeline
       protected
 
       def endpoint = MODEL.endpoint
+
+      private
+
+      # Where a shot starts reading its source: a from_run plate at the shot's own position, a source video
+      # at `from:` seconds, a generated clip at its first frame.
+      def skip_frames(spec)
+        return spec["start_frame"] if spec["from_run"]
+        (spec.fetch("from", 0).to_f * FPS).round
+      end
     end
   end
 end

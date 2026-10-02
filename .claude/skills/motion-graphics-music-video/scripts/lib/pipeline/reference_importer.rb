@@ -27,5 +27,20 @@ module Pipeline
                      provenance: { source_manifest: File.expand_path(manifest), sha256: digest,
                                    reused_hosted_reference: true })
     end
+
+    # Use an approved character card that was never a Fal generation (a production's own model sheet) as the
+    # run's identity: copied into the run, uploaded once, and recorded with its source path and hash.
+    def card(run:, image:, client: Fal::Client.new)
+      digest = Digest::SHA256.file(image).hexdigest
+      project = Project.new(run)
+      if (current = project[:ref_base])
+        return current if current.dig("provenance", "sha256") == digest && File.file?(current.fetch("path"))
+        raise ArgumentError, "RUN=#{run} already has a different identity; import into a new versioned RUN"
+      end
+      target = project.path("01_ref_base#{File.extname(image)}")
+      FileUtils.cp(image, target)
+      project.record(:ref_base, path: target, url: client.upload(target),
+                     provenance: { source_card: File.expand_path(image), sha256: digest, approved_card: true })
+    end
   end
 end

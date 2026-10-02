@@ -24,6 +24,7 @@ GEM
 PLATFORMS
   arm64-darwin-25
   ruby
+  x64-mingw-ucrt
 
 DEPENDENCIES
   excon (~> 1.7)

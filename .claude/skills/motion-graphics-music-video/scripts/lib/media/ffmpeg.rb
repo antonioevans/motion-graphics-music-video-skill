@@ -157,9 +157,9 @@ module Media
 
     # Cut and join shots into one silent video at `fps`, sized like the first shot. segments: [{ path:, frames:,
     # skip: (source frames to drop first), retime: (squeeze the whole source into `frames`) }].
-    def concat_shots(segments, out, fps:)
-      first = summary(segments.first[:path])[:video]
-      size = "scale=#{first[:w]}:#{first[:h]},setsar=1"
+    def concat_shots(segments, out, fps:, size: nil)
+      w, h = size || summary(segments.first[:path])[:video].values_at(:w, :h)
+      size = "scale=#{w}:#{h}:flags=lanczos,setsar=1"
       chains = segments.each_with_index.map do |seg, i|
         timing = if seg[:retime]
                    "setpts=(PTS-STARTPTS)*#{(seg[:frames].fdiv(fps) / duration(seg[:path])).round(6)},fps=#{fps},trim=end_frame=#{seg[:frames]}"
