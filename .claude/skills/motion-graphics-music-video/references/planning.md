@@ -9,7 +9,7 @@ For a requested regeneration, begin from the established storyboard and latest a
 1. Preserve the original in `audio/source.<extension>`. `audio:analyze` decodes it once to `audio/song.wav`, produces beats/onsets and loudness/energy reports. Listen to confirm section boundaries: the simple beat detector assumes a steady 4/4 grid and is advisory for tempo changes.
 2. Make a timeline at 24fps. Section `at` is the inclusive starting frame; `frames` is its length; end is exclusive. Adjacent sections satisfy `next.at = at + frames`. Cover frame zero through `ceil(song_duration * 24)`; the last video frame may outlast audio by less than one frame. Never lose the intro or duplicate an alternative take.
 3. Mark exact lyric start/end, singer, face visibility and emotional action. Core lip-sync moments get dedicated close or medium shots. Silence, breaths and instrumental breaks are timing events too.
-4. After approval, Whisper word chunks and Demucs vocals can refine the timing. Keep corrections in `docs/TIMING.md` and local words JSON. Do not rewrite an approved creative plan merely to log implementation progress.
+4. A Suno song already has word timings (song-maker's `songs/takeN_words.json`, or `kie:words`); copy them to `audio/words.json`. After approval, `kie:stems` vocals refine the timing and drive lipsync. Keep corrections in `docs/TIMING.md` and local words JSON. See [music-kie.md](music-kie.md). Do not rewrite an approved creative plan merely to log implementation progress.
 
 ## Research for interesting details
 

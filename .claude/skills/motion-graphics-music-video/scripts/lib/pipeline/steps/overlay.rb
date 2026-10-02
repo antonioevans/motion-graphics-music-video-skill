@@ -12,6 +12,7 @@ module Pipeline
       OUT = "final_overlay.mp4".freeze
 
       def submit
+        return song_words(song_words_file) if song_words_file
         MODEL.new(client: client).transcribe(audio_url: project.fetch!(:music, :url), chunk_level: "word")
       end
 
@@ -31,8 +32,10 @@ module Pipeline
           first = chunk["s"] || chunk.dig("timestamp", 0) || chunk["start"]
           last = chunk["e"] || chunk.dig("timestamp", 1) || chunk["end"]
           next unless first && last && last > offset && first < offset + project.duration
-          { w: (chunk["w"] || chunk["text"] || chunk["word"]).to_s.strip,
-            s: [first - offset, 0].max, e: [last - offset, project.duration].min }
+          # Suno alignments carry section tags such as "[Verse]\n" inside the word.
+          text = (chunk["w"] || chunk["text"] || chunk["word"]).to_s.gsub(/\[[^\]]*\]/, "").strip
+          next if text.empty?
+          { w: text, s: [first - offset, 0].max, e: [last - offset, project.duration].min }
         end
         File.write(data_path(:words), JSON.pretty_generate(words))
         track!
@@ -84,8 +87,18 @@ module Pipeline
       protected
 
       def anim = @anim ||= Media::Anim.new
+      def endpoint = song_words_file ? "local:#{song_words_file}" : super
 
       private
+
+      # The song's Suno word timings as section-local Whisper-shaped chunks, so no transcription is bought.
+      def song_words(file)
+        offset = project.generation.fetch(:music_offset, 0)
+        chunks = section_song_words(file).map do |w|
+          { "text" => w[:w], "timestamp" => [[w[:s] - offset, 0].max.round(3), [w[:e] - offset, project.duration].min.round(3)] }
+        end
+        Result.new(request_id: nil, input: { words: file, offset: offset }, output: { "chunks" => chunks })
+      end
 
       def sketch = project.prompt_path("05_overlay")
       # The video to draw on: a held keyframe (plate:), the multi-shot plate, or the single-shot video.

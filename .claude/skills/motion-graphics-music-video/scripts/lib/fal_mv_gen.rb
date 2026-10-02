@@ -4,6 +4,7 @@ Dir[File.join(__dir__, "media", "*.rb")].sort.each { |f| require f }
 require "fal/client"
 require "fal/openapi"
 Dir[File.join(__dir__, "fal", "models", "*.rb")].sort.each { |f| require f }
+require "kie/music"
 require "pipeline/project"
 require "pipeline/step"
 require "pipeline/items_step"

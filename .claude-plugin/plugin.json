@@ -1,21 +1,28 @@
 {
   "name": "motion-graphics-music-video",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "license": "MIT",
-  "description": "Create animated music videos with researched storyboards, Fal generation, p5 motion graphics, audio editing, and Swift VFX.",
+  "description": "Create animated music videos with researched storyboards, Fal generation, kie.ai Suno music, p5 motion graphics, audio editing, and Swift VFX.",
   "author": {
     "name": "makevoid",
     "url": "https://github.com/makevoid"
   },
   "homepage": "https://github.com/makevoid/motion-graphics-music-video-skill#readme",
   "repository": "https://github.com/makevoid/motion-graphics-music-video-skill",
-  "keywords": ["music-video", "motion-graphics", "fal", "p5", "video"],
+  "keywords": ["music-video", "motion-graphics", "fal", "kie", "suno", "p5", "video"],
   "skills": ["./.claude/skills/"],
   "userConfig": {
     "FAL_AI_API_KEY": {
       "type": "string",
       "title": "Fal API key",
       "description": "Your Fal API key for image, video, and audio generation. Paid tasks require an approved production plan.",
+      "sensitive": true,
+      "required": false
+    },
+    "KIE_API_KEY": {
+      "type": "string",
+      "title": "Kie API key",
+      "description": "Your kie.ai API key for Suno music work: stems and word timings. Paid tasks require an approved production plan.",
       "sensitive": true,
       "required": false
     }
@@ -25,7 +32,8 @@
       "command": "ruby",
       "args": ["${CLAUDE_PLUGIN_ROOT}/.claude/skills/motion-graphics-music-video/scripts/mcp.rb"],
       "env": {
-        "FAL_AI_API_KEY_PLUGIN": "${user_config.FAL_AI_API_KEY}"
+        "FAL_AI_API_KEY_PLUGIN": "${user_config.FAL_AI_API_KEY}",
+        "KIE_API_KEY_PLUGIN": "${user_config.KIE_API_KEY}"
       }
     }
   }

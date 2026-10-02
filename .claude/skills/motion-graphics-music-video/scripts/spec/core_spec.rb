@@ -32,6 +32,24 @@ RSpec.describe "Skill contracts and Ruby entry", :core do
     _, _, status = cli("init", "--project", dir, "--song", file("song.wav"), "--prompt-file", file("brief.md"))
     expect(status.exitstatus).to eq(2)
   end
+  it "refreshes an existing project's toolkit and skill copy without touching its own work" do
+    File.write(file("song.wav"), "fixture"); File.write(file("brief.md"), "Dancing robot")
+    dir = file("refresh-project")
+    _, err, status = cli("init", "--project", dir, "--song", file("song.wav"), "--prompt-file", file("brief.md"))
+    expect(status.exitstatus).to eq(0), err
+    File.write(File.join(dir, "lib/tasks.rb"), "stale")
+    File.write(File.join(dir, ".skill/SKILL.md"), "stale")
+    File.write(File.join(dir, "config/generations.rb"), "{ \"s01\" => {} }\n")
+    File.write(File.join(dir, "docs/PLAN.md"), "my plan")
+    out, err, status = cli("refresh", "--project", dir)
+    expect(status.exitstatus).to eq(0), err
+    expect(JSON.parse(out)["project"]).to eq(dir)
+    expect(File.read(File.join(dir, "lib/tasks.rb"))).to eq(File.read(File.join(RT, "lib/tasks.rb")))
+    expect(File.read(File.join(dir, ".skill/SKILL.md"))).to include("kie.ai")
+    expect(File.read(File.join(dir, "config/generations.rb"))).to eq("{ \"s01\" => {} }\n")
+    expect(File.read(File.join(dir, "docs/PLAN.md"))).to eq("my plan")
+    expect(cli("refresh", "--project", file("not-a-project"))[2].exitstatus).to eq(2)
+  end
   it "executes shell arguments literally, including spaces and shell metacharacters" do
     dangerous = "a path; $(touch SHOULD_NOT_EXIST) `x`"
     out = Media::Shell.new.run(RbConfig.ruby, "-e", "print ARGV.fetch(0)", dangerous, quiet: true)
@@ -65,7 +83,9 @@ RSpec.describe "Skill contracts and Ruby entry", :core do
         approval.record!(#{note.inspect})
         approval.check!
       RUBY
-      _, err, status = Open3.capture3({"LC_ALL" => "C", "LANG" => "C"}, RbConfig.ruby, "-EUS-ASCII", "-e", script)
+      # A file, not -e: Windows re-encodes command-line arguments through the ANSI code page.
+      File.write("locale_check.rb", script, encoding: "UTF-8")
+      _, err, status = Open3.capture3({"LC_ALL" => "C", "LANG" => "C"}, RbConfig.ruby, "-EUS-ASCII", File.expand_path("locale_check.rb"))
       expect(status.success?).to be(true), err
       expect(JSON.parse(File.read("config/approval.json", encoding: "UTF-8"))["user_approval"]).to eq(note)
     end

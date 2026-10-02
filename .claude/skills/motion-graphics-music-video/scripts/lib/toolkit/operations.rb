@@ -24,8 +24,11 @@ module Toolkit
       "anim:overlay" => "Render RUN's saved overlay data (local)",
       "anim:prepare" => "Prepare local overlay cues from optional full-song [words.json], without Fal",
       "audio:analyze" => "Decode and analyze song beats/energy: [audio,out_dir] (local)",
-      "audio:transcribe" => "Word timestamps with Fal Whisper: [audio,out.json] (paid)",
-      "media:stems" => "Fal Demucs: [audio,out_dir,vocals,...] (paid)",
+      "audio:transcribe" => "Word timestamps with Fal Whisper: [audio,out.json] (paid; music timings use kie:words)",
+      "media:stems" => "Fal Demucs: [audio,out_dir,vocals,...] (paid; music stems use kie:stems)",
+      "kie:stems" => "Suno stem separation on kie.ai of a local song: [audio,out_dir]; STEMS=separate_vocal|split_stem|split_stem_advanced (paid, Kie credits)",
+      "kie:words" => "Suno word timings from kie.ai: [task_id,audio_id,out.json,shift_seconds] (Kie)",
+      "kie:credit" => "Kie credit balance (no charge)",
       "media:probe" => "Probe [path]",
       "media:sheet" => "Contact sheet [video,out.jpg]",
       "media:frames" => "Dense reference analysis [video,out_dir,fps,width]",
@@ -47,6 +50,7 @@ module Toolkit
       "media:twitter" => "1080p delivery [video,out.mp4] (local encode only)",
       "media:upload" => "Upload [path] to Fal CDN",
       "ref:import" => "Reuse existing hosted identity [new_run,local_image,original_manifest.json] (no upload)",
+      "ref:card" => "Use an approved character card as identity [new_run,card_image] (Fal upload)",
       "vfx:build" => "Build Swift Core Image renderer (macOS)",
       "vfx:analyze" => "Analyze VFX source beats and cuts; VFX=name",
       "vfx:stills" => "Preview cued VFX frames [0,24,...]; VFX=name",
@@ -96,6 +100,9 @@ module Toolkit
         required(a, 2); c = Fal::Client.new; stems = a.drop(2); stems = %w[vocals] if stems.empty?
         result = Fal::Models::Demucs.new(client: c).separate(audio_url: c.upload(a[0]), stems: stems)
         FileUtils.mkdir_p(a[1]); emit stems.map { |s| c.download(result.output.fetch(s).fetch("url"), File.join(a[1], "#{s}.wav")) }
+      when "kie:stems" then required(a, 2); emit Kie::Stems.new(ff: ff).separate(a[0], a[1], type: ENV.fetch("STEMS", "separate_vocal"))
+      when "kie:words" then required(a, 3); emit Kie::Words.new.fetch(a[0], a[1], a[2], shift: Float(a[3] || 0))
+      when "kie:credit" then emit(credits: Kie::Client.new.credit)
       when "media:probe" then required(a, 1); emit ff.summary(a[0])
       when "media:sheet" then required(a, 2); emit ff.contact_sheet(*a)
       when "media:frames" then required(a, 2); emit ff.extract_frames(a[0], a[1], fps: Float(a[2] || 12), width: Integer(a[3] || 480))
@@ -121,6 +128,7 @@ module Toolkit
       when "media:twitter" then required(a, 2); emit ff.twitter_1080(*a)
       when "media:upload" then required(a, 1); emit(url: Fal::Client.new.upload(a[0]))
       when "ref:import" then required(a, 3); emit Pipeline::ReferenceImporter.new.import(run: a[0], image: a[1], manifest: a[2])
+      when "ref:card" then required(a, 2); emit Pipeline::ReferenceImporter.new.card(run: a[0], image: a[1])
       when "vfx:build" then emit Media::Vfx.new.build
       when "vfx:analyze" then emit Media::Vfx.new.analyze
       when "vfx:stills" then required(a, 1); emit Media::Vfx.new.stills(a.map { |x| Integer(x) })
@@ -181,6 +189,7 @@ module Toolkit
                           "C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
                           File.join(ENV["LOCALAPPDATA"].to_s, "Google/Chrome/Application/chrome.exe")].compact.any? { |p| File.file?(p) }
       checks["fal_key"] = !ENV["FAL_AI_API_KEY"].to_s.strip.empty?
+      checks["kie_key"] = !ENV["KIE_API_KEY"].to_s.strip.empty?
       emit checks
       raise "Missing prerequisites; see references/testing.md and run setup" if ENV["STRICT"] == "1" && checks.values.any? { |v| !v }
     end

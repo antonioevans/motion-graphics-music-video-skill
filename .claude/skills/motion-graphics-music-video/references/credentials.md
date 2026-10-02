@@ -1,4 +1,6 @@
-# Fal credentials and plugin execution
+# Fal and Kie credentials and plugin execution
+
+Kie works the same way as Fal: the plugin's sensitive `KIE_API_KEY` option reaches the MCP server as `KIE_API_KEY_PLUGIN`, the server falls back to the launcher's `KIE_API_KEY`, and the child task receives it as `KIE_API_KEY`. `credential_status` returns `configured` (Fal) and `kie_configured` (Kie). `kie:stems` and `kie:words` check plan approval; `kie:credit` does not. Both keys are redacted from returned output. Codex lists both variables in the `music-video` server's `env_vars`.
 
 The plugin declares an optional sensitive `FAL_AI_API_KEY` option. Claude Code collects and stores it in secure credential storage, then injects it into the `music-video` MCP server's environment as `FAL_AI_API_KEY_PLUGIN`. When that value is empty the server uses `FAL_AI_API_KEY` from the environment Claude Code was launched in. The option is optional so the server starts, and `credential_status` can report a missing key, instead of Claude Code dropping the server. The model does not receive the value. Configure it through the plugin's configuration interface, never through chat or a command argument. Restart/reconnect the MCP server after changing the key.
 
@@ -19,7 +21,7 @@ The server is `scripts/mcp.rb`, a Ruby stdio process using standard libraries. I
 }
 ```
 
-For `audio:transcribe`, use a task such as `audio:transcribe[audio/song.wav,audio/words.json]`. Comma-separated task arguments follow the same Rake rules as the CLI. The tool supports `doctor`, `audio:transcribe`, `media:stems`, `media:upload`, `sfx:gen`, `pipeline:all`, `adopt`, all `gen:*` tasks, and `review:music`. Run other local recipes directly through the Ruby CLI.
+For Kie stems, use a task such as `kie:stems[audio/source.mp3,audio/stems]` with `options` `{"STEMS": "separate_vocal"}`. Comma-separated task arguments follow the same Rake rules as the CLI. The tool supports `doctor`, `audio:transcribe`, `media:stems`, `media:upload`, `ref:card`, `sfx:gen`, `pipeline:all`, `adopt`, all `gen:*` tasks, `review:music`, `kie:stems`, `kie:words` and `kie:credit`. The `STEMS` option selects the Kie separation type. Run other local recipes directly through the Ruby CLI.
 
 5. `run_task` immediately returns `job_id`. Poll `task_status` with `{"job_id":"returned-id"}` until `completed` or `failed`. Check `exit_code`, recent redacted output, and the generated artifacts. Continue the worker journal and wave reviews normally. Up to ten jobs can run concurrently, each with its own task options and subprocess.
 
@@ -29,7 +31,7 @@ The server checks the project's plan approval before starting any supported task
 
 ## Standalone and developer use
 
-For direct Ruby CLI calls, set `FAL_AI_API_KEY` in the launching terminal or inject it from your development secret manager:
+For direct Ruby CLI calls, set `FAL_AI_API_KEY` (and `KIE_API_KEY` for music tasks) in the launching terminal or inject them from your development secret manager:
 
 ```sh
 export FAL_AI_API_KEY='your-fal-api-key'

@@ -56,7 +56,7 @@ module Pipeline
             "not silent" => [loud.size >= energy["windows"].size * 0.6, "#{loud.size}/#{energy["windows"].size} windows > -30dB"],
             "vocal band present" => [vocal.size >= 3, "#{vocal.size} windows with strong 300-3400Hz share"],
             "no long silent tail" => [energy["silence_tail_s"] < 2.5, "#{energy["silence_tail_s"]}s"],
-            "lyrics sung" => [(expected - words).empty?, "missing #{(expected - words).inspect}, whisper: #{transcript[:text].inspect}"]
+            "lyrics sung" => [(expected - words).empty?, "missing #{(expected - words).inspect}, heard: #{transcript[:text].inspect}"]
           )
         }
       end
@@ -77,8 +77,13 @@ module Pipeline
 
       def ext(url) = File.extname(URI(url).path).then { |e| e.empty? ? ".mp3" : e }
 
-      # Whisper transcript of the fitted master, with segment timestamps.
+      # The section's words from the song's Suno timings when the project has them (no paid call),
+      # otherwise a Whisper transcript of the fitted master.
       def transcribe
+        if (file = song_words_file)
+          words = section_song_words(file)
+          return { text: words.map { |w| w[:w] }.join(" "), segments: words.map { |w| "#{w[:s]}-#{w[:e]}s #{w[:w]}" }, source: file }
+        end
         return { text: "", segments: [], skipped: "upload_music: false; local audio review only" } unless project[key]["url"]
         out = Fal::Models::Whisper.new(client: client).transcribe(audio_url: project[key]["url"]).output
         { text: out["text"].to_s.strip, segments: Array(out["chunks"]).map { |c| "#{c["timestamp"]&.join("-")}s #{c["text"].to_s.strip}" } }

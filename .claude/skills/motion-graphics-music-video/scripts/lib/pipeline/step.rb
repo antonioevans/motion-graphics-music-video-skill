@@ -83,6 +83,24 @@ module Pipeline
     def seed = ENV["SEED"]&.to_i
     def endpoint = self.class::MODEL.endpoint
 
+    # Full-song word timings from Suno on kie.ai (song-maker's takeN_words.json or kie:words),
+    # [{w,s,e}] on the song's timeline: `words:` in the generation, else audio/words.json.
+    def song_words_file
+      file = project.generation[:words] || ("audio/words.json" if File.file?(File.join(ROOT, "audio/words.json")))
+      file && File.expand_path(file, ROOT)
+    end
+
+    # The song words inside this section, section tags removed, still on the song's timeline.
+    def section_song_words(file)
+      from = project.generation.fetch(:music_offset, 0)
+      to = from + project.duration
+      JSON.parse(File.read(file)).filter_map do |item|
+        text = (item["w"] || item["word"] || item["text"]).to_s.gsub(/\[[^\]]*\]/, "").strip
+        first, last = (item["s"] || item["start"]).to_f, (item["e"] || item["end"]).to_f
+        { w: text, s: first, e: last } unless text.empty? || last <= from || first >= to
+      end
+    end
+
     # Common manifest fields for a fal result.
     def base_data(result)
       { request_id: result.request_id, endpoint: endpoint, input: result.input }

@@ -17,12 +17,7 @@ module Toolkit
       raise ArgumentError, "Song or prompt file missing" unless File.file?(song) && File.file?(prompt)
       raise ArgumentError, "Project must be a new or empty directory" if File.exist?(project) && (!File.directory?(project) || !Dir.children(project).empty?)
       copy_tree(@runtime, project)
-      origin = File.file?(File.expand_path("../SKILL.md", @runtime)) ? File.expand_path("..", @runtime) : File.join(@runtime, ".skill")
-      if File.file?(File.join(origin, "SKILL.md"))
-        target = File.join(project, ".skill")
-        FileUtils.mkdir_p(target)
-        %w[SKILL.md references assets].each { |entry| FileUtils.cp_r(File.join(origin, entry), target) }
-      end
+      copy_skill(project)
       %w[audio config docs prompts output].each { |d| FileUtils.mkdir_p(File.join(project, d)) }
       ext = File.extname(song)
       FileUtils.cp(song, File.join(project, "audio", "source#{ext}"))
@@ -31,6 +26,22 @@ module Toolkit
       File.write(File.join(project, "config/production.json"), JSON.pretty_generate(wave: 0, jobs: []))
       File.write(File.join(project, "config/project.json"), JSON.pretty_generate(song_source: "audio/source#{ext}", fps: 24))
       { project: project, next: "setup, then audio:analyze[audio/source#{ext},audio]; write docs/PLAN.md before approval" }
+    end
+    # Bring an existing project's toolkit code and skill copy up to the installed version.
+    # The excluded project folders (audio, config, docs, prompts, output) are never touched.
+    def refresh(project:)
+      raise ArgumentError, "refresh requires --project of an initialized video project" unless project && File.file?(File.join(project, "config/project.json"))
+      raise ArgumentError, "Use a video project outside the installed toolkit" if File.expand_path(project) == File.expand_path(@runtime)
+      copy_tree(@runtime, project)
+      copy_skill(project)
+      { project: project, refreshed_from: @runtime, next: "setup if Gemfile, package.json or requirements.txt changed" }
+    end
+    def copy_skill(project)
+      origin = File.file?(File.expand_path("../SKILL.md", @runtime)) ? File.expand_path("..", @runtime) : File.join(@runtime, ".skill")
+      return unless File.file?(File.join(origin, "SKILL.md"))
+      target = File.join(project, ".skill")
+      FileUtils.mkdir_p(target)
+      %w[SKILL.md references assets].each { |entry| FileUtils.cp_r(File.join(origin, entry), target) }
     end
   end
 end

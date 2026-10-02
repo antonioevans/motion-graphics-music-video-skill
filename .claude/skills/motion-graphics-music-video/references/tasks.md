@@ -95,7 +95,7 @@ Prompt files per run:
 | `04_clips.yml` | H3/still/source sprite specifications and chroma/crop |
 | `05_overlay.js` | p5 sketch, rendered through Ruby |
 
-Read each step's `prompt` call if adding a new type. The imported `Music3` wrapper is optional for explicit song-generation requests; the normal skill uses the user's supplied song.
+Read each step's `prompt` call if adding a new type. Songs are made with Suno on kie.ai through song-maker, never with the imported `Music3` wrapper; see [music-kie.md](music-kie.md). Set `words:` on a generation (or keep `audio/words.json`) so `review:music` and `gen:overlay` read the song's Suno timings instead of buying Whisper.
 
 Example `02_keyframes.yml`:
 
@@ -150,7 +150,7 @@ RUN=s01 ruby scripts/mv.rb --project /absolute/project anim:overlay
 ruby scripts/mv.rb --project /absolute/project 'media:preview[output/clean.mp4,s01,s02]'
 ```
 
-`gen:ref_base`, `gen:keyframes`, `gen:video`, `gen:shots`, H3 `gen:clips`, generated music, `gen:overlay`, `review:music`, stems and SFX may call paid Fal endpoints. `gen:music` for an imported song is local processing plus CDN upload; `gen:overlay` uses paid Whisper unless re-rendering saved cues through `anim:overlay`. Reviews other than music are local. `pipeline:all` includes paid review calls; allocate them in the plan.
+`gen:ref_base`, `gen:keyframes`, `gen:video`, `gen:shots`, H3 `gen:clips`, generated music, `gen:overlay`, `review:music`, stems and SFX may call paid Fal endpoints; `kie:stems` and `kie:words` call paid Kie endpoints. With song word timings present, `gen:overlay` and `review:music` make no transcription call. `gen:music` for an imported song is local processing plus CDN upload; `gen:overlay` uses paid Whisper unless re-rendering saved cues through `anim:overlay`. Reviews other than music are local. `pipeline:all` includes paid review calls; allocate them in the plan.
 
 For existing reliable word timings, use `anim:prepare[full-song-words.json]` after the plate prerequisites exist, then `anim:preview`/`anim:overlay`. It accepts Whisper `chunks` or an array of `{w,s,e}` / `{word,start,end}`, selects this section and subtracts its song offset. With no argument it writes an empty cue list for sketches with explicitly authored timing. It also prepares configured tracks locally. `anim:overlay` records a complete manifest even on the first local render, so `review:overlay` works without a paid `gen:overlay` call.
 
@@ -160,8 +160,9 @@ For existing reliable word timings, use `anim:prepare[full-song-words.json]` aft
 
 ```sh
 ruby scripts/mv.rb --project /absolute/project 'audio:analyze[audio/source.mp3,audio]'
-ruby scripts/mv.rb --project /absolute/project 'audio:transcribe[audio/song.wav,audio/words.json]'
-ruby scripts/mv.rb --project /absolute/project 'media:stems[audio/song.wav,audio/stems,vocals]'
+ruby scripts/mv.rb --project /absolute/project 'kie:stems[audio/source.mp3,audio/stems]'
+ruby scripts/mv.rb --project /absolute/project 'kie:words[<task_id>,<audio_id>,audio/words.json,<shift_seconds>]'
+ruby scripts/mv.rb --project /absolute/project kie:credit
 ruby scripts/mv.rb --project /absolute/project 'media:frames[reference.mp4,output/reference_frames,12,480]'
 ruby scripts/mv.rb --project /absolute/project 'media:cuts[reference.mp4,output/cuts.json]'
 ruby scripts/mv.rb --project /absolute/project 'media:mouth[output/s01/04_clips/sing,audio/stems/vocals.wav,0,120,60,40,20]'

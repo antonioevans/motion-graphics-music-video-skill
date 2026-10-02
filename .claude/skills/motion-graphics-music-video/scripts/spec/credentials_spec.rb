@@ -11,7 +11,7 @@ RSpec.describe "Configured Fal credentials and MCP delivery", :core do
     project
   end
 
-  def task_runner(api_key: "test-only-secret")
+  def task_runner(api_key: "test-only-secret", kie_key: "kie-only-secret")
     entry = file("server/fixture.rb")
     FileUtils.mkdir_p(File.dirname(entry))
     File.write(entry, <<~'RUBY')
@@ -27,10 +27,11 @@ RSpec.describe "Configured Fal credentials and MCP delivery", :core do
         puts "waiting"
         sleep 30
       end
-      puts JSON.generate(key_digest: Digest::SHA256.hexdigest(ENV.fetch("FAL_AI_API_KEY", "")), task: task, run: ENV["RUN"], cwd: Dir.pwd)
+      puts JSON.generate(key_digest: Digest::SHA256.hexdigest(ENV.fetch("FAL_AI_API_KEY", "")),
+        kie_digest: Digest::SHA256.hexdigest(ENV.fetch("KIE_API_KEY", "")), task: task, run: ENV["RUN"], cwd: Dir.pwd)
       exit 7 if ENV["RUN"] == "fail"
     RUBY
-    @runner = Toolkit::CredentialTasks.new(entry: entry, api_key: api_key)
+    @runner = Toolkit::CredentialTasks.new(entry: entry, api_key: api_key, kie_key: kie_key)
   end
 
   def wait_for_job(runner, id)
@@ -189,8 +190,35 @@ RSpec.describe "Configured Fal credentials and MCP delivery", :core do
     expect(responses.map { |r| r["id"] }).to eq([1, 2, 3, 4])
     expect(responses.first.dig("result", "protocolVersion")).to eq("2025-11-25")
     expect(responses[1].dig("result", "tools").map { |t| t["name"] }).to include("run_task", "task_status")
-    expect(JSON.parse(responses[2].dig("result", "content", 0, "text"))).to eq("configured" => true)
+    expect(JSON.parse(responses[2].dig("result", "content", 0, "text"))).to eq("configured" => true, "kie_configured" => true)
     expect(responses[3].dig("result", "isError")).to be(true)
     expect(output.string).not_to include("test-only-secret")
+    expect(output.string).not_to include("kie-only-secret")
+  end
+
+  it "passes the Kie key to Kie tasks behind the approval check, and redacts it" do
+    runner = task_runner
+    project = prepared_project
+    expect { runner.start(project: project, task: "kie:stems[audio/source.mp3,audio/stems]") }.to raise_error(/approval missing/i)
+    credit = wait_for_job(runner, runner.start(project: project, task: "kie:credit")[:job_id])
+    expect(JSON.parse(credit[:output])).to include("kie_digest" => Digest::SHA256.hexdigest("kie-only-secret"), "task" => "kie:credit")
+    FileUtils.mkdir_p(File.join(project, "docs"))
+    File.write(File.join(project, "docs/PLAN.md"), "Mocked Kie approval gate test")
+    Workflow::Approval.new(root: project).record!("Test fixture consent")
+    result = wait_for_job(runner, runner.start(project: project, task: "kie:stems[audio/source.mp3,audio/stems]", options: {"STEMS" => "split_stem"})[:job_id])
+    expect(JSON.parse(result[:output])["task"]).to eq("kie:stems[audio/source.mp3,audio/stems]")
+    expect(result.to_json).not_to include("kie-only-secret")
+    expect(runner.redact("kie-only-secret and test-only-secret")).to eq("[REDACTED] and [REDACTED]")
+  end
+
+  it "refuses Kie tasks without a Kie key and Fal tasks without a Fal key" do
+    runner = task_runner(kie_key: "${user_config.KIE_API_KEY}")
+    expect(runner.kie_configured?).to be(false)
+    expect { runner.start(project: prepared_project, task: "kie:credit") }.to raise_error(/KIE_API_KEY/)
+    fal_only = task_runner(api_key: "", kie_key: "kie-only-secret")
+    expect { fal_only.start(project: prepared_project, task: "gen:ref_base") }.to raise_error(/FAL_AI_API_KEY/)
+    plugin = Toolkit::CredentialTasks::KIE_PLUGIN_KEY
+    expect(Toolkit::CredentialTasks.kie_env_key(plugin => "", "KIE_API_KEY" => "shell-key")).to eq("shell-key")
+    expect(Toolkit::CredentialTasks.kie_env_key(plugin => "plugin-key", "KIE_API_KEY" => "shell-key")).to eq("plugin-key")
   end
 end
