@@ -30,7 +30,7 @@ ruby scripts/mv.rb --project /absolute/video-workspace 'fonts:copy[config/fonts.
 
 The task copies the selected files to that workspace's `tools/p5/fonts/`, reports source paths and SHA-256 hashes, and refuses to replace different existing font bytes. JSON preserves source paths containing spaces or commas. Record the selection in `docs/PLAN.md`, retain applicable license notices, and keep local font files out of the plugin repository. No font installation or download happens during `setup`.
 
-Load the copied filenames, for example `this.f = await Anim.fonts({ title: "title.ttf" })`, then use `textFont(this.f.title)`. Preview representative lyrics, punctuation and non-Latin characters before rendering the full video. If a requested face is unavailable, resolve the typography choice before rendering rather than silently substituting it.
+Load the copied filenames, for example `this.f = await Anim.fonts({ title: "title.ttf" })`, then use `textFont(this.f.title)`. In p5 2.x `textWidth` is the tight ink width (0 for a space); lay out letter-spaced text with `fontWidth`, the advance width. Preview representative lyrics, punctuation and non-Latin characters before rendering the full video. If a requested face is unavailable, resolve the typography choice before rendering rather than silently substituting it.
 
 This minimal example demonstrates sprite placement and a camera transform. Supply the background, graphics, colours and any typography from the scene's approved design.
 

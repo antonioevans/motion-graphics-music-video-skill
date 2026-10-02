@@ -64,7 +64,21 @@ When `audio/words.json` exists, or a generation sets `words:`:
 - `gen:overlay` builds its cues from it with no Fal call.
 - `anim:prepare[audio/words.json]` prepares the same cues for a sketch.
 
-Suno's alignment can drift on fast rap and held fado notes. Correct the times by listening, and record the corrections in `docs/TIMING.md`.
+Suno's timings are good for finding a section and for overlay cues. They are not reliable inside a line: on a proven Rua episode they put four words in 0.31 s followed by a 1.9 s hole. For lipsync timing, use a ruler measured off the audio. Rua's `utilities\sung-shots` scribes the song once and caches the result. Correct times by listening, and record the corrections in `docs/TIMING.md`.
+
+## Rua de Camões productions: picture follows the locked stack
+
+Rua's `CLAUDE.md` locks every generation to Kie: gpt-image-2.5 Flare for images, grok-imagine for talking and singing, seedance-2-mini for movement, ElevenLabs v3 for voices and Suno for songs. It says never to propose another model, host or service. A Rua music video therefore runs this skill's plan, timeline, p5 overlays, compositing and unbroken-song assembly, but makes none of its Fal image or H3 calls:
+
+- **Plates** are released episode footage, `source:` Shots cut from `episodes\S03\release-order\done\*.mp4`. That footage is already graded and neural-passed, so never grade or neural-pass it again.
+- **Singing performers** come from `utilities\sung-shots\run.py` (`plan`, `sing`, `warp`, `assemble`). grok or Seedance performs the quoted lyric from one still. The still is an episode frame of that character, or a gpt-image-2.5 Flare frame made with the character's card attached (law 11). The clip is scribed, retimed onto the song's own word onsets and spliced into the plate cut. Its README rules apply: one visible face per sung shot, and scribe the master once.
+- **New clips** get the season grade once (`utilities\episode-production\color_grade.py`, preset `05-sodium-cyan`) and then the neural pass once (`utilities\neural-finish\finish.py`), before they are spliced.
+- **Budget:** run `utilities\budget\budget.py check` before every paid call and `spend` in the same turn.
+- **Episode tails carry their own credit.** A released episode burns a small "Created by Antonio Evans" line over
+  its last few seconds (E02 of S03 from about 140.4 s of 145.5 s), and `sung-shots assemble` burns the house
+  credit over the video's last 4 s. Stop every plate shot before an episode's credit, or the two stack.
+- **Fonts on Windows:** `fonts:list` scans the macOS font folders. Write `config/fonts.json` with paths from
+  `C:/Windows/Fonts` instead, then run `fonts:copy`.
 
 ## Keys and approval
 
